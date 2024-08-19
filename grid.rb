@@ -8,17 +8,17 @@ class Grid
   end
 
   def visit(point)
-    raise "Point #{point} is not a valid point" unless point.is_a?(Hash) && point.key?(:row) && point.key?(:col)
+    raise "Point #{point} is not a valid point" unless valid_point?(point)
 
     visited[point] = true
   end
 
   def all_visited?
-    visited.select { |_, value| value }.length == size * size
+    visited.values.count(true) == size * size
   end
 
   def is_valid_move?(from:, to:)
-    edges[from][to] != nil
+    edges[from] && edges[from][to]
   end
 
   def move_cost(from:, to:)
@@ -41,47 +41,61 @@ class Grid
 
   def init_grid
     @edges = {}
+    moves = define_moves
 
-    moves = {
-      -1 => [0],
-      0 => [-1, 1],
-      1 => [0]
-    }
+    (0...size).each do |row|
+      (0...size).each do |col|
+        from = { row: row, col: col }
 
-    (0..size - 1).each do |row|
-      (0..size - 1).each do |col|
-        from = {row: row, col: col}
-
-        unless edges[from]
-          edges[from] = {}
-          edges[from][from] = 0
-          visited[from] = false
-        end
+        initialize_edges(from)
 
         moves.each_key do |x_direction|
           moves[x_direction].each do |y_direction|
-            neighbour_x = row + x_direction
-            neighbour_y = col + y_direction
+            neighbour_x, neighbour_y = row + x_direction, col + y_direction
+            next unless valid_position?(neighbour_x, neighbour_y)
 
-            next unless neighbour_x.between?(0, size - 1) && neighbour_y.between?(0, size - 1)
+            to = { row: neighbour_x, col: neighbour_y }
 
-            to = {row: neighbour_x, col: neighbour_y}
+            next if edge_exists?(from, to)
 
-            next if edges.key?(from) && edges[from].key?(to)
-            next if edges.key?(to) && edges[to].key?(from)
-
-            weight = rand(1..10)
-
-            edges[from] = {} unless edges[from]
-            edges[from][to] = weight
-
-            edges[to] = {} unless edges[to]
-            edges[to][from] = weight
-
-            puts "Building edge (#{row}, #{col}) -> (#{neighbour_x}, #{neighbour_y}) = #{weight}"
+            create_edge(from, to, rand(1..10))
           end
         end
       end
     end
+  end
+
+  def define_moves
+    {
+      -1 => [0],
+      0 => [-1, 1],
+      1 => [0]
+    }
+  end
+
+  def valid_position?(x, y)
+    x.between?(0, size - 1) && y.between?(0, size - 1)
+  end
+
+  def valid_point?(point)
+    point.is_a?(Hash) && point.key?(:row) && point.key?(:col)
+  end
+
+  def initialize_edges(from)
+    @edges[from] ||= {}
+    @edges[from][from] = 0
+    @visited[from] = false
+  end
+
+  def edge_exists?(from, to)
+    edges[from] && edges[from][to] || edges[to] && edges[to][from]
+  end
+
+  def create_edge(from, to, weight)
+    edges[to] ||= {}
+    edges[from][to] = weight
+    edges[to][from] = weight
+
+    puts "Building edge (#{from[:row]}, #{from[:col]}) -> (#{to[:row]}, #{to[:col]}) = #{weight}"
   end
 end
